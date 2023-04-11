@@ -1,0 +1,120 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+
+use App\Repositories\{{moduleName}}Repository;
+
+use App\Http\Controllers\Controller;
+use App\Http\Resources\{{moduleName}}Resource;
+use App\Http\Resources\BaseCollection;
+
+use App\Exceptions\ValidationException;
+
+use Exception;
+
+class {{moduleName}}Controller extends Controller
+{
+    protected $repository;
+    protected $resource;
+    protected $input = [];
+
+    public function __construct({{moduleName}}Repository $repository)
+    {
+        $this->repository = $repository;
+        $this->resource = {{moduleName}}Resource::class;
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        try {
+            $params = $request->query();
+            $payload = $this->repository->setPayload($params);
+            $data = $this->repository->getData();
+
+            $res = $payload['withPagination'] ?
+                new BaseCollection($data, $this->resource) :
+                $this->resource::collection($data);
+
+            return response()->success($res, 'Success');
+        } catch (Exception $e) {
+            return response()->error($e->getMessage());
+        }
+    }
+
+    public function show($id): JsonResponse
+    {
+        try {
+            $data = $this->repository->findById($id);
+            return response()->success($data ? new $this->resource($data) : null, 'Success');
+        } catch (Exception $e) {
+            return response()->error($e->getMessage());
+        }
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        DB::beginTransaction();
+        try {
+            $payload = $request->only($this->input);
+            $validator = Validator::make($payload, [
+                // validation
+            ]);
+            if ($validator->fails())
+                throw new ValidationException($validator->errors()->first());
+
+            $data = $this->repository->store(null, $payload);
+
+            DB::commit();
+            return response()->success(new $this->resource($data), 'Success');
+        } catch (ValidationException $e) {
+            DB::rollback();
+            return response()->error($e->getMessage(), 400);
+        } catch (Exception $e) {
+            DB::rollback();
+            return response()->error($e->getMessage());
+        }
+    }
+
+    public function update($id, Request $request): JsonResponse
+    {
+        DB::beginTransaction();
+        try {
+            $payload = $request->only($this->input);
+            $validator = Validator::make($payload, [
+                // validation
+            ]);
+            if ($validator->fails())
+                throw new ValidationException($validator->errors()->first());
+
+            $data = $this->repository->store($id, $payload);
+
+            DB::commit();
+            return response()->success(new $this->resource($data), 'Success');
+        } catch (ValidationException $e) {
+            DB::rollback();
+            return response()->error($e->getMessage(), 400);
+        } catch (Exception $e) {
+            DB::rollback();
+            return response()->error($e->getMessage());
+        }
+    }
+
+    public function destroy($id): JsonResponse
+    {
+        DB::beginTransaction();
+        try {
+            $this->repository->delete($id);
+
+            DB::commit();
+            return response()->success(null, 'Deleted');
+        } catch (Exception $e) {
+            DB::rollback();
+            return response()->error($e->getMessage());
+        }
+    }
+}

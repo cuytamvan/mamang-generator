@@ -1,0 +1,18 @@
+<?php
+
+namespace App\Repositories;
+
+use Cuytamvan\BasePattern\Repository\CoreRepository;
+
+use App\Models\{{moduleName}};
+
+class {{moduleName}}Repository extends CoreRepository
+{
+    protected $model;
+    protected $moduleName = '{{moduleName}}';
+
+    public function __construct({{moduleName}} $model)
+    {
+        $this->model = $model;
+    }
+}
